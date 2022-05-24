@@ -7,45 +7,46 @@ const pathToAssets = path.join(__dirname, 'assets');
 const pathToDistAssets = path.join(pathToDist, 'assets');
 
 (async () => {
-  try {
-    await fs.rm(pathToDist, { force: true, recursive: true });
-    await fs.mkdir(pathToDist);
-    await mergeStyles();
-    await createHtml();
-    await copyDir(pathToAssets, pathToDistAssets);
-  } catch (err) {
-    console.log(err.message);
-  }
+  await fs.rm(pathToDist, { force: true, recursive: true });
+  await fs.mkdir(pathToDist);
+  await mergeStyles(pathToStyles, pathToDist);
+  await createHtml(pathToComponents, pathToDist);
+  await copyDirectory(pathToAssets, pathToDistAssets);
 })();
 
-async function createHtml () {
+async function createHtml(src, dest) {
   let html = await fs.readFile(path.join(__dirname, 'template.html'), 'utf-8');
-  const components = await fs.readdir(pathToComponents, { withFileTypes: true });
+  const components = await fs.readdir(src, {
+    withFileTypes: true,
+  });
   for (const component of components) {
     const ext = path.extname(component.name);
     if (component.isFile() && ext === '.html') {
-      const template = await fs.readFile(path.join(pathToComponents, component.name), 'utf-8');
+      const template = await fs.readFile(
+        path.join(src, component.name),
+        'utf-8'
+      );
       const templateName = path.basename(component.name, ext);
       html = html.replace(`{{${templateName}}}`, template);
     }
   }
-  await fs.writeFile(path.join(pathToDist, 'index.html'), html);
+  await fs.writeFile(path.join(dest, 'index.html'), html);
 }
 
-async function mergeStyles () {
-  const stylesFiles = await fs.readdir(pathToStyles, { withFileTypes: true });
+async function mergeStyles(src, dest) {
+  const stylesFiles = await fs.readdir(src, { withFileTypes: true });
   const styles = [];
   for (const styleFile of stylesFiles) {
     const ext = path.extname(styleFile.name);
     if (styleFile.isFile() && ext === '.css') {
-      const style = await fs.readFile(path.join(pathToStyles, styleFile.name), 'utf-8');
+      const style = await fs.readFile(path.join(src, styleFile.name), 'utf-8');
       styles.push(style);
     }
   }
-  await fs.writeFile(path.join(pathToDist, 'style.css'), styles.join('\n'));
+  await fs.writeFile(path.join(dest, 'style.css'), styles.join('\n'));
 }
 
-async function copyDir(src, dest) {
+async function copyDirectory(src, dest) {
   await fs.mkdir(dest);
   const files = await fs.readdir(src, { withFileTypes: true });
   for (const file of files) {
@@ -54,7 +55,7 @@ async function copyDir(src, dest) {
     if (file.isFile()) {
       await fs.copyFile(currPathToSrc, currPathToDest);
     } else {
-      await copyDir(currPathToSrc, currPathToDest);
+      await copyDirectory(currPathToSrc, currPathToDest);
     }
   }
 }
